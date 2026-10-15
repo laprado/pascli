@@ -49,6 +49,9 @@ type
     procedure TestSelectedCommandValidateIfOptionsWithValueExists;
     procedure TestSelectedCommandValidateRejectNotAllowedOption;
     procedure TestSelectedCommandValidateRejectNotAllowedOptionLongName;
+    procedure TestSelectedCommandValidateRejectNotAllowedOptionWithValue;
+    procedure TestSelectedCommandValidateRejectNotAllowedOptionWithValueLast;
+    procedure TestSelectedCommandOptionRequiresValueShortFlag;
     procedure TestSelectedCommandValidateRejectOptionOnlyWithFlags;    
     procedure TestSelectedCommandOptionDoesNotRequireValue;
     procedure TestSelectedCommandOptionRequiresValue;
@@ -478,6 +481,66 @@ begin
   // assert
   AssertEquals('Should return one error after validation', 1, Length(FArray));
   AssertEquals('Command "other" invalid. Option "-v" cannot be used with "-r"', FArray[0]);  
+end;
+
+procedure TTestCommandValidator.TestSelectedCommandValidateRejectNotAllowedOptionWithValue;
+begin
+  // arrange
+  FBuilder
+      .AddCommand('help', 'show help information', nil, [ccDefault, ccNoArgumentsButCommands])
+      .AddCommand('other', 'other command', nil, [])
+        .AddOption('t', 'template', 'option with value', ['w'], ocRequiresValue)
+        .AddOption('w', 'workspace', 'option not allowed with template', ['t'])
+      .AddArgument('some argument', acOptional)
+      .UseArguments(['other', '--template=cli', '--workspace'])
+      .Parse;
+
+  // act
+  FValidator := TSelectedCommandValidateRejectedOption.Create;
+  FArray := FValidator.Validate(FBuilder);
+
+  // assert
+  AssertEquals('Should return one error after validation', 1, Length(FArray));
+  AssertEquals('Command "other" invalid. Option "-t" cannot be used with "-w"', FArray[0]);
+end;
+
+procedure TTestCommandValidator.TestSelectedCommandValidateRejectNotAllowedOptionWithValueLast;
+begin
+  // arrange
+  FBuilder
+      .AddCommand('help', 'show help information', nil, [ccDefault, ccNoArgumentsButCommands])
+      .AddCommand('other', 'other command', nil, [])
+        .AddOption('t', 'template', 'option with value', ['w'], ocRequiresValue)
+        .AddOption('w', 'workspace', 'option not allowed with template', ['t'])
+      .AddArgument('some argument', acOptional)
+      .UseArguments(['other', '-w', '-t=cli'])
+      .Parse;
+
+  // act
+  FValidator := TSelectedCommandValidateRejectedOption.Create;
+  FArray := FValidator.Validate(FBuilder);
+
+  // assert
+  AssertEquals('Should return one error after validation', 1, Length(FArray));
+  AssertEquals('Command "other" invalid. Option "-w" cannot be used with "-t"', FArray[0]);
+end;
+
+procedure TTestCommandValidator.TestSelectedCommandOptionRequiresValueShortFlag;
+begin
+  // arrange
+  FBuilder
+      .AddCommand('help', 'show help information', nil, [ccDefault, ccNoArgumentsButCommands])
+      .AddCommand('other', 'other command', nil, [])
+        .AddOption('d', 'debug', 'debug option', [], ocRequiresValue)
+      .UseArguments(['other', '-d=1'])
+      .Parse;
+
+  // act
+  FValidator := TSelectedCommandValidateOptionValueRequired.Create;
+  FArray := FValidator.Validate(FBuilder);
+
+  // assert
+  AssertEquals('A short flag with a value should be valid', 0, Length(FArray));
 end;
 
 procedure TTestCommandValidator.AddOptionInvalidNotAllowedFlag;

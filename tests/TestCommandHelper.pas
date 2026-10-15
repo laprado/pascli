@@ -39,6 +39,9 @@ begin
   AssertEquals('Remove first two dashes not work.', 'debug', RemoveStartingDashes('--debug'));
   AssertEquals('Remove third dash.', '-d', RemoveStartingDashes('---d'));
   AssertEquals('Remove middle dashes.', 'debug-no-compile', RemoveStartingDashes('--debug-no-compile'));
+  AssertEquals('Keep a long option with its value.',
+    'package=a-package-name-longer-than-thirty-chars',
+    RemoveStartingDashes('--package=a-package-name-longer-than-thirty-chars'));
 end;
 
 procedure TTestCommandHelper.TestSplitOptionAndValue;

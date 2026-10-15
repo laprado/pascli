@@ -51,6 +51,9 @@ type
     procedure TestGetDefaultCommand;
     procedure TestParsedOptions;
     procedure TestCheckOption;
+    procedure TestCheckOptionValueFollowedByOption;
+    procedure TestCheckOptionValueShortFlag;
+    procedure TestRunInvalidSetsExitCode;
     procedure TestParsedArguments;
     procedure TestGetRawArguments;
     procedure TestGetRawOptions;
@@ -492,6 +495,56 @@ begin
   AssertEquals('Must match second argument name', 'project.lpr', LArguments[1]);
   AssertEquals('Must match third argument name', 'another argument', LArguments[2]);
   
+end;
+
+procedure TTestCommandBuilder.TestCheckOptionValueFollowedByOption;
+var
+  LValue: string;
+begin
+  FBuilder
+    .AddCommand('cmd', 'cmd command', MockCommand, [ccDefault])
+      .AddOption('n', 'name', 'name option', [], ocRequiresValue)
+      .AddOption('v', 'verbose', 'verbose option', [])
+    .UseArguments(['cmd', '--name=pascli', '--verbose'])
+    .Parse;
+
+  AssertTrue('Must find option "name"', FBuilder.CheckOption('name', LValue));
+  AssertEquals('The following option must not reset the value', 'pascli', LValue);
+  AssertTrue('Must find option "verbose"', FBuilder.CheckOption('verbose'));
+end;
+
+procedure TTestCommandBuilder.TestCheckOptionValueShortFlag;
+var
+  LValue: string;
+begin
+  FBuilder
+    .AddCommand('cmd', 'cmd command', MockCommand, [ccDefault])
+      .AddOption('n', 'name', 'name option', [], ocRequiresValue)
+      .AddOption('v', 'verbose', 'verbose option', [])
+    .UseArguments(['cmd', '-vn=pascli'])
+    .Parse;
+
+  AssertEquals('Raw options must keep the dash of each flag', '-v', FBuilder.GetRawOptions[0]);
+  AssertEquals('Raw options must keep the dash of the flag with value', '-n=pascli', FBuilder.GetRawOptions[1]);
+  AssertTrue('Must find option "n"', FBuilder.CheckOption('n', LValue));
+  AssertEquals('pascli', LValue);
+  AssertTrue('Must find option "v"', FBuilder.CheckOption('v'));
+end;
+
+procedure TTestCommandBuilder.TestRunInvalidSetsExitCode;
+begin
+  FBuilder
+    .AddCommand('cmd', 'cmd command', MockCommand, [ccDefault, ccRequiresOneArgument])
+    .AddArgument('file name', acOptional)
+    .UseArguments(['cmd']);
+
+  ExitCode := 0;
+  FBuilder.Run;
+  try
+    AssertEquals('A command that fails the validation must set the exit code', 1, ExitCode);
+  finally
+    ExitCode := 0;
+  end;
 end;
 
 procedure TTestCommandBuilder.TestGetRawOptions;

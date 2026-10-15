@@ -41,9 +41,9 @@ begin
   Result := LOption;
   if StartsText('-', Result) then
   begin
-    Result := Copy(LOption, 2, 30);
+    Result := Copy(LOption, 2, Length(LOption));
     if StartsText('-', Result) then
-      Result := Copy(Result, 2, 30);
+      Result := Copy(Result, 2, Length(Result));
   end;
 end;
 

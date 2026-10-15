@@ -61,7 +61,7 @@
           {
             "label": "pasdoc: build documentation",
             "type": "shell",
-            "command": "./docs/generate/build.ps1",
+            "command": "./docs/generate/build.sh",
             "args": [],
             "problemMatcher": []
           }

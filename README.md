@@ -5,7 +5,7 @@ A CLI library for ease development of command line applications for FreePascal /
 
 ### Manual installation
 
-* Download the zip file from [releases](https://github.com/leandro-lprsoft/pascli/releases") page. Or you can just clone the repository.
+* Download the zip file from [releases](https://github.com/laprado/pascli/releases) page. Or you can just clone the repository.
 * Unzip it to a folder of your preference.
 * Create a new project using Lazarus, open the project options, access the "compiler options / paths" section , and add the pascli "src" folder to the field "Other unit files", use the search button "..." to locate this folder.
 
@@ -17,12 +17,12 @@ Create a new project and save it. Open a terminal at the project location and ty
 
 ```
 boss init --quiet
-boss install github.com/leandro-lprsoft/pascli
+boss install github.com/laprado/pascli
 ```
 
 ## Documentation
 
-This library is documented using [**pasdoc**](https://pasdoc.github.io/). You can access the documetation using this link [**pascli docs**](https://leandro-lprsoft.github.io/pascli/)
+This library is documented using [**pasdoc**](https://pasdoc.github.io/). You can access the documetation using this link [**pascli docs**](https://laprado.github.io/pascli/)
 
 ## Quick start
 
@@ -159,4 +159,4 @@ Command.Version.Registry(Application.CommandBuilder);
 
 ## License
 
-`pascli` is free and open-source software licensed under the [MIT License](https://github.com/leandro-lprsoft/pascli/blob/master/LICENSE). 
+`pascli` is free and open-source software licensed under the [MIT License](https://github.com/laprado/pascli/blob/main/LICENSE). 

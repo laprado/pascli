@@ -1,0 +1,68 @@
+name: docs
+
+# Generates the site with docs/generate/build.sh and publishes it to GitHub Pages. Pull
+# requests that change the pages or the sources only generate it, so a broken page shows up
+# before the merge; the push to main publishes it. The generated HTML is not kept in the
+# repository.
+on:
+  push:
+    branches:
+    - "main"
+    paths: &docs-paths
+    - "docs/generate/**"
+    - "src/**"
+    - ".github/workflows/docs.yml"
+  pull_request:
+    branches:
+    - "main"
+    paths: *docs-paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+    - uses: actions/checkout@v4
+
+    # the release asset listed on pasdoc.github.io, with its published sha256
+    - name: Install pasdoc
+      run: |
+        curl -fsSLO https://github.com/pasdoc/pasdoc/releases/download/v1.0.4/pasdoc-1.0.4-linux-x86_64.tar.gz
+        echo "ef0bee4a0c5169fd92bccd594e6df9ff4f4c138b951c9a81d498cecb9602e0e9  pasdoc-1.0.4-linux-x86_64.tar.gz" | sha256sum -c -
+        tar xzf pasdoc-1.0.4-linux-x86_64.tar.gz -C "$RUNNER_TEMP"
+        rm pasdoc-1.0.4-linux-x86_64.tar.gz
+        echo "$RUNNER_TEMP/pasdoc/bin" >> "$GITHUB_PATH"
+
+    - name: Generating the docs
+      run: docs/generate/build.sh
+
+    # the site without its sources in docs/generate
+    - name: Site folder
+      run: rsync -a --exclude generate docs/ _site/
+
+    - uses: actions/upload-pages-artifact@v3
+      with:
+        path: _site
+
+  deploy:
+    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - id: deployment
+      uses: actions/deploy-pages@v4

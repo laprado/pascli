@@ -82,7 +82,9 @@ begin
   SetDefaultThemeColor;
   CommandBuilder.Title := Title;
   CommandBuilder.Parse;
-  CommandBuilder.Validate;
+  // the command does not run, a script calling the tool must notice it
+  if Length(CommandBuilder.Validate) > 0 then
+    ExitCode := 1;
   CommandBuilder.Execute;
   Terminate;
 end;

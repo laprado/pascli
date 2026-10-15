@@ -511,13 +511,18 @@ begin
 
   if Assigned(LCommand) then
   begin
-    LParsedOptions := ACommand.GetRawOptions;
-    
+    // the option names without dashes and values, so an option with a value, like
+    // --name=value, is found as well
+    LParsedOptions := Copy(ACommand.GetRawOptions);
     for I := 0 to Length(LParsedOptions) - 1 do
     begin
-      LOptionCleaned := Copy(LParsedOptions[I], 2, 30);
-      if StartsText('-', LOptionCleaned) then
-        LOptionCleaned := Copy(LOptionCleaned, 2, 30);
+      LParsedOptions[I] := RemoveStartingDashes(LParsedOptions[I]);
+      SplitOptionAndValue(LParsedOptions[I]);
+    end;
+
+    for I := 0 to Length(LParsedOptions) - 1 do
+    begin
+      LOptionCleaned := LParsedOptions[I];
 
       for LOption in LCommand.Options do
       begin
@@ -528,8 +533,8 @@ begin
             LNotAllowedOption := LCommand.GetOption(LReject);
             if not Assigned(LNotAllowedOption) then continue;
             
-            if AnsiMatchText('-' + LNotAllowedOption.Flag, LParsedOptions)
-               or AnsiMatchText('--' + LNotAllowedOption.Name, LParsedOptions) then
+            if AnsiMatchText(LNotAllowedOption.Flag, LParsedOptions)
+               or AnsiMatchText(LNotAllowedOption.Name, LParsedOptions) then
             begin
               AppendToArray(FResult, 
                 Format('Command "%s" invalid. Option "-%s" cannot be used with "-%s"',

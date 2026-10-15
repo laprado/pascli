@@ -7,7 +7,7 @@ The project is also configured to work with vscode. It has configuration for bui
 
 @section(1 SecFirst Github repository)
 
-https://github.com/leandro-lprsoft/pascli.git
+https://github.com/laprado/pascli.git
 
 @section(1 SecSecond Development dependencies)
 
@@ -17,11 +17,11 @@ There are no dependencies to work with this project in Lazarus. But to work in v
     @item(Lazbuild - needs to be in the path, so the build task should work.)
     @item(@html(<a href="https://marketplace.visualstudio.com/items?itemName=CNOC.fpdebug">Free Pascal (fpc) Debugger</a>) - vscode extension that is configured in launhc.json, you may choose one of your preference.)
     @item(@html(<a href="https://marketplace.visualstudio.com/items?itemName=Wosi.omnipascal">Omni Pascal</a>) - vscode extension to format code, for code completion, syntax check, etc.)
-    @item(@html(<a href="https://github.com/leandro-lprsoft/pasc">pasc</a>) - command line tool used to show unit test report and provide watch function during development, it is used by some tasks configured in tasks.json file.)
+    @item(@html(<a href="https://github.com/laprado/pasc">pasc</a>) - command line tool used to show unit test report and provide watch function during development, it is used by some tasks configured in tasks.json file.)
    )
 
 @section(1 SecThird Documentation dependencies)
 @unorderedList(
     @item(@html(<a href="https://pasdoc.github.io">pasdoc</a>) - it´s a documentation tool for freepascal, it´s optional for build the project, but required to build documentation. Must be in the path.)
-    @item(build.ps1 - is a powershell script to run pasdoc and generate the documentation site, it must be called from the project root: "docs/generate/build.ps1")
+    @item(build.sh - a bash script that runs pasdoc 1.0 and generates the documentation site into the docs folder: @html(<code>docs/generate/build.sh</code>). The generated files are not committed: the docs workflow generates the site and publishes it to GitHub Pages on every push to main.)
 )
