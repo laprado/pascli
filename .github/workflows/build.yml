@@ -1,22 +1,29 @@
 name: build
 
-# Pull requests only: the merge into main would rebuild what the pull request already
-# tested. The FPC and Lazarus cache of main, which pull requests can restore, is kept by
-# toolchain-cache.yml.
+# Pull requests, and the push to main after a merge, so the build badge of the README shows
+# the state of main. The FPC and Lazarus cache of main, which pull requests can restore, is
+# kept by toolchain-cache.yml.
 on:
-  pull_request:
-    paths-ignore:
+  push:
+    branches:
+    - "main"
+    paths-ignore: &ignored-paths
     - "README.md"
     - "LICENSE"
     - "docs/**"
     - ".vscode/**"
     - ".github/workflows/docs.yml"
     - ".github/workflows/toolchain-cache.yml"
+  pull_request:
+    paths-ignore: *ignored-paths
     branches:
     - "main"
   workflow_dispatch:
 
-# a new push to the pull request cancels the build of the previous one
+permissions:
+  contents: read
+
+# a new push to the pull request, or a new merge, cancels the build of the previous one
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -54,3 +61,107 @@ jobs:
         for project in samples/*/*.lpi; do
           lazbuild --lazarusdir="$LAZARUS_DIR" $target "$project" -B
         done
+
+  # pasc coverage on Ubuntu only: kcov does not run on Windows. On main the total goes to
+  # coverage.json in the badges branch, read by the coverage badge of the README through the
+  # shields.io endpoint, so the README never changes to update it.
+  coverage:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      PASC_VERSION: "1.6.0"
+      # pasc_checksums.txt of the pasc release
+      PASC_SHA256: 7e76e22776b900def33e6e636cbc57bb97cd49c416879f55182b451d670f7f52
+      KCOV_VERSION: "43"
+      # https://github.com/SimonKagstrom/kcov/archive/refs/tags/v43.tar.gz, the same sha256
+      # as the Homebrew formula, and the same sha512 as the Arch Linux package
+      KCOV_SHA256: 4cbba86af11f72de0c7514e09d59c7927ed25df7cebdad087f6d3623213b95bf
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup FPC and Lazarus
+      uses: ./.github/actions/setup-toolchain
+
+    - name: Install pasc
+      run: |
+        cd "$RUNNER_TEMP"
+        curl -fsSL -o pasc.zip "https://github.com/laprado/pasc/releases/download/v$PASC_VERSION/pasc-linux-amd64.zip"
+        echo "$PASC_SHA256  pasc.zip" | sha256sum -c -
+        unzip -q pasc.zip -d "$HOME/pasc"
+        echo "$HOME/pasc" >> "$GITHUB_PATH"
+        "$HOME/pasc/pasc" version
+
+    # Ubuntu 24.04 has no kcov package, so it is built from the sources of the release tag
+    - name: Cache kcov
+      id: kcov-cache
+      uses: actions/cache@v4
+      with:
+        path: ~/kcov
+        key: kcov-${{ env.KCOV_VERSION }}-ubuntu-24.04-${{ runner.arch }}
+
+    - name: Install kcov
+      run: |
+        if [ "${{ steps.kcov-cache.outputs.cache-hit }}" = "true" ]; then
+          sudo apt-get install -y -qq --no-install-recommends libdw1t64 libelf1t64 libcurl4t64
+        else
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends cmake binutils-dev libssl-dev \
+            libcurl4-openssl-dev libelf-dev zlib1g-dev libdw-dev libiberty-dev
+          cd "$RUNNER_TEMP"
+          curl -fsSL -o kcov.tar.gz "https://github.com/SimonKagstrom/kcov/archive/refs/tags/v$KCOV_VERSION.tar.gz"
+          echo "$KCOV_SHA256  kcov.tar.gz" | sha256sum -c -
+          tar xzf kcov.tar.gz
+          cmake -S "kcov-$KCOV_VERSION" -B kcov-build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$HOME/kcov"
+          cmake --build kcov-build -j"$(nproc)"
+          cmake --install kcov-build
+        fi
+        echo "$HOME/kcov/bin" >> "$GITHUB_PATH"
+        "$HOME/kcov/bin/kcov" --version
+
+    # pasc calls lazbuild without --lazarusdir: the first call with it saves the Lazarus
+    # folder in ~/.lazarus, where the next ones find it
+    - name: Configure lazbuild
+      run: lazbuild --lazarusdir="$LAZARUS_DIR" "tests/TestPascli.lpi"
+
+    # the sources in src, without the tests and the samples
+    - name: Measuring the coverage
+      run: pasc coverage
+
+    - name: Upload the coverage report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage
+        path: coverage/
+        retention-days: 14
+
+    # the same color bands as pasc: red below 60%, yellow below 80%, green below 90%, then
+    # brightgreen. A push with GITHUB_TOKEN starts no workflow, so no loop.
+    - name: Publish the coverage badge
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        report=$(ls coverage/*/kcov-merged/coverage.json | head -1)
+        percent=$(jq -r '.percent_covered' "$report")
+        color=$(awk -v p="$percent" 'BEGIN { if (p < 60) print "red"; else if (p < 80) print "yellow"; else if (p < 90) print "green"; else print "brightgreen" }')
+        message=$(awk -v p="$percent" 'BEGIN { printf "%.1f%%", p }')
+
+        badges="$RUNNER_TEMP/badges"
+        if git fetch --depth=1 origin badges:refs/remotes/origin/badges; then
+          git worktree add -B badges "$badges" origin/badges
+        else
+          git worktree add --orphan -b badges "$badges"
+        fi
+        jq -n --arg message "$message" --arg color "$color" \
+          '{schemaVersion: 1, label: "coverage", message: $message, color: $color}' > "$badges/coverage.json"
+
+        cd "$badges"
+        git add coverage.json
+        if git diff --cached --quiet; then
+          echo "coverage unchanged: $message"
+          exit 0
+        fi
+        git -c user.name="github-actions[bot]" \
+          -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+          commit -q -m "coverage $message ($GITHUB_SHA)"
+        git push origin badges
