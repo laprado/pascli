@@ -949,7 +949,7 @@ end;
 procedure TCommandBuilder.ParseOptions;
 var
   LOption: IOption;
-  LRawOption, LOptionCleaned: string;
+  LRawOption, LOptionCleaned, LValue: string;
 begin
   SetLength(FParsedOptions, 0);
   if not Assigned(CommandSelected) then 
@@ -959,9 +959,11 @@ begin
     for LRawOption in FProvidedOptions do
     begin
       LOptionCleaned := RemoveStartingDashes(LRawOption);
-      LOption.Value := SplitOptionAndValue(LOptionCleaned);
+      LValue := SplitOptionAndValue(LOptionCleaned);
+      // only the raw option of this option sets its value, the others must not reset it
       if AnsiMatchText(LOptionCleaned, [LOption.Flag, LOption.Name]) then
       begin
+        LOption.Value := LValue;
         SetLength(FParsedOptions, Length(FParsedOptions) + 1);
         FParsedOptions[Length(FParsedOptions) - 1] := LOption;
       end;
@@ -996,7 +998,9 @@ end;
 function TCommandBuilder.Run: ICommandBuilder;
 begin
   Parse;
-  Validate;
+  // the command does not run, a script calling the tool must notice it
+  if Length(Validate) > 0 then
+    ExitCode := 1;
   Execute;
   Result := Self;
 end;
@@ -1039,7 +1043,9 @@ begin
     begin
       if Copy(AParam, I + 1, 1) = '=' then
       begin
-        AppendToArray(FProvidedOptions, Copy(AParam, I, Length(AParam) - I + 1));
+        // the last flag of the group takes the value, with its dash like the others: -abc=1
+        // is -a, -b and -c=1
+        AppendToArray(FProvidedOptions, '-' + Copy(AParam, I, Length(AParam) - I + 1));
         break;
       end
       else
