@@ -1,4 +1,10 @@
 ## pascli
+[![build](https://github.com/laprado/pascli/actions/workflows/build.yml/badge.svg?branch=main&event=push)](https://github.com/laprado/pascli/actions/workflows/build.yml?query=branch%3Amain+event%3Apush)
+[![coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Flaprado%2Fpascli%2Fbadges%2Fcoverage.json)](https://github.com/laprado/pascli/actions/workflows/build.yml?query=branch%3Amain+event%3Apush)
+[![docs](https://github.com/laprado/pascli/actions/workflows/docs.yml/badge.svg?branch=main&event=push)](https://laprado.github.io/pascli/)
+[![release](https://img.shields.io/github/v/release/laprado/pascli)](https://github.com/laprado/pascli/releases/latest)
+[![license](https://img.shields.io/github/license/laprado/pascli)](LICENSE)
+
 A CLI library for ease development of command line applications for FreePascal / Lazarus.
 
 ## Install

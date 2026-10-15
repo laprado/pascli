@@ -32,3 +32,5 @@ tests/TestPascli
 /samples/fluent/fluent
 /samples/input/input
 /samples/options/options
+/coverage/
+/tests/TestPascli-coverage
