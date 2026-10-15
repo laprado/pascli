@@ -119,6 +119,11 @@ jobs:
         echo "$HOME/kcov/bin" >> "$GITHUB_PATH"
         "$HOME/kcov/bin/kcov" --version
 
+    # pasc calls lazbuild without --lazarusdir: the first call with it saves the Lazarus
+    # folder in ~/.lazarus, where the next ones find it
+    - name: Configure lazbuild
+      run: lazbuild --lazarusdir="$LAZARUS_DIR" "tests/TestPascli.lpi"
+
     # the sources in src, without the tests and the samples
     - name: Measuring the coverage
       run: pasc coverage
