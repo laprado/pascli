@@ -47,7 +47,7 @@ jobs:
       run: |
         target=""
         if [ "$RUNNER_OS" = "Windows" ]; then target="--os=win64 --cpu=x86_64"; fi
-        lazbuild --lazarusdir="$LAZARUS_DIR" $target "tests/TestPascli.lpi" -B
+        lazbuild $target "tests/TestPascli.lpi" -B
 
     - name: Run the unit test application
       run: tests/TestPascli "--all" "--format=plain"
@@ -59,7 +59,7 @@ jobs:
         target=""
         if [ "$RUNNER_OS" = "Windows" ]; then target="--os=win64 --cpu=x86_64"; fi
         for project in samples/*/*.lpi; do
-          lazbuild --lazarusdir="$LAZARUS_DIR" $target "$project" -B
+          lazbuild $target "$project" -B
         done
 
   # pasc coverage on Ubuntu only: kcov does not run on Windows. On main the total goes to
@@ -119,14 +119,15 @@ jobs:
         echo "$HOME/kcov/bin" >> "$GITHUB_PATH"
         "$HOME/kcov/bin/kcov" --version
 
-    # pasc calls lazbuild without --lazarusdir: the first call with it saves the Lazarus
-    # folder in ~/.lazarus, where the next ones find it
-    - name: Configure lazbuild
-      run: lazbuild --lazarusdir="$LAZARUS_DIR" "tests/TestPascli.lpi"
-
     # the sources in src, without the tests and the samples
     - name: Measuring the coverage
-      run: pasc coverage
+      id: coverage
+      run: |
+        pasc coverage
+        # the report of the test executable: kcov merges nothing for a single one
+        percent=$(jq -r '.percent_covered' coverage/*/TestPascli-coverage/coverage.json)
+        echo "percent=$percent" >> "$GITHUB_OUTPUT"
+        echo "coverage: $percent%"
 
     - name: Upload the coverage report
       if: always()
@@ -141,8 +142,7 @@ jobs:
     - name: Publish the coverage badge
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
-        report=$(ls coverage/*/kcov-merged/coverage.json | head -1)
-        percent=$(jq -r '.percent_covered' "$report")
+        percent="${{ steps.coverage.outputs.percent }}"
         color=$(awk -v p="$percent" 'BEGIN { if (p < 60) print "red"; else if (p < 80) print "yellow"; else if (p < 90) print "green"; else print "brightgreen" }')
         message=$(awk -v p="$percent" 'BEGIN { printf "%.1f%%", p }')
 
