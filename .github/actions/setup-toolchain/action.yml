@@ -2,8 +2,10 @@ name: Setup FPC and Lazarus
 description: >
   Installs FPC from the official downloads.freepascal.org packages and builds lazbuild from
   the Lazarus sources on the freepascal.org GitLab, both kept in a single cache, as in pasc.
-  Sets LAZARUS_DIR, adds fpc and lazbuild to the path. On Windows FPC is i386 with the
-  x86_64-win64 cross compiler, so builds for win64 pass --os=win64 --cpu=x86_64.
+  Sets LAZARUS_DIR, adds fpc and lazbuild to the path and saves the Lazarus folder in the
+  lazbuild options, so lazbuild needs no --lazarusdir, also when pasc calls it. On Windows
+  FPC is i386 with the x86_64-win64 cross compiler, so builds for win64 pass --os=win64
+  --cpu=x86_64.
 
 inputs:
   fpc-version:
@@ -143,3 +145,30 @@ runs:
       echo "$LAZARUS_DIR" >> "$GITHUB_PATH"
       fpc -iV
       "$LAZARUS_DIR/lazbuild" --version
+
+  # what lazbuild --lazarusdir writes on its first build, in its primary config path:
+  # ~/.lazarus, or %LOCALAPPDATA%\lazarus on Windows. Without it lazbuild fails with
+  # 'Invalid Lazarus directory ""' unless every call passes --lazarusdir.
+  - name: Save the Lazarus folder for lazbuild
+    shell: bash
+    run: |
+      if [ "$RUNNER_OS" = "Windows" ]; then
+        config="$LOCALAPPDATA/lazarus"
+        lazarus=$(cygpath -w "$LAZARUS_DIR")
+        compiler=$(cygpath -w "$(command -v fpc)")
+      else
+        config="$HOME/.lazarus"
+        lazarus="$LAZARUS_DIR"
+        compiler=$(command -v fpc)
+      fi
+      mkdir -p "$config"
+      cat > "$config/environmentoptions.xml" <<EOF
+      <?xml version="1.0" encoding="UTF-8"?>
+      <CONFIG>
+        <EnvironmentOptions>
+          <LazarusDirectory Value="$lazarus"/>
+          <CompilerFilename Value="$compiler"/>
+        </EnvironmentOptions>
+      </CONFIG>
+      EOF
+      cat "$config/environmentoptions.xml"
