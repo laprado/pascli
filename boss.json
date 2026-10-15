@@ -2,7 +2,7 @@
 	"name": "pascli",
 	"description": "Object Pascal CLI library for ease development of command line applications",
 	"version": "1.7.3",
-	"homepage": "https://github.com/leandro-lprsoft/pascli",
+	"homepage": "https://github.com/laprado/pascli",
 	"mainsrc": "src/",
 	"projects": [],
 	"dependencies": {}

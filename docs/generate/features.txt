@@ -13,24 +13,30 @@ The validations of commands, options and arguments provided by the user are perf
 
 However, an important point to emphasize is with regard to command constraints, option constraints and arguments.
 
-We have the example of using a command constraint @link(ccNoParameters) that prevents a command from accepting any parameter when used by the user employed in the sample @html(<a href="https://github.com/leandro-lprsoft/pascli/blob/main/samples/colors/colors.lpr">Colors</a>).
+We have the example of using a command constraint @link(ccNoParameters) that prevents a command from accepting any parameter when used by the user employed in the sample @html(<a href="https://github.com/laprado/pascli/blob/main/samples/colors/colors.lpr">Colors</a>).
 
-Another example that we can cite is the sample @html(<a href="https://github.com/leandro-lprsoft/pascli/blob/main/samples/options/options.lpr">options</a>), in which we have the use of the contraints [@link(ccRequiresOneArgument), @link(ccRequiresOneOption)] being used together. The first forces the user to supply an argument for executing the command and the other forces at least one option to be informed.
+Another example that we can cite is the sample @html(<a href="https://github.com/laprado/pascli/blob/main/samples/options/options.lpr">options</a>), in which we have the use of the contraints [@link(ccRequiresOneArgument), @link(ccRequiresOneOption)] being used together. The first forces the user to supply an argument for executing the command and the other forces at least one option to be informed.
 
 Check the enum @link(TCommandConstraint) for see all available command constraints.
 
 @section(2 SecThird Short options or long options using the method AddOption)
 
-The best example we can use for configuring options is sample @html(<a href="https://github.com/leandro-lprsoft/pascli/blob/main/samples/options/options.lpr">options</a>). We can clearly see that the options are configured through the AddOption command where their short form and long form are provided.
+The best example we can use for configuring options is sample @html(<a href="https://github.com/laprado/pascli/blob/main/samples/options/options.lpr">options</a>). We can clearly see that the options are configured through the AddOption command where their short form and long form are provided.
 
 @section(2 SecThird_1 Options with required value or not)
 
-The best example we can use for configuring options is also the sample @html(<a href="https://github.com/leandro-lprsoft/pascli/blob/main/samples/options/options.lpr">options</a>).
+The best example we can use for configuring options is also the sample @html(<a href="https://github.com/laprado/pascli/blob/main/samples/options/options.lpr">options</a>).
 Whenever an option is configured using the AddOption command, some validation parameters can be informed:
 
 * ANotAllowedOptions: this is an array of strings that can receive the flags that are prohibited for use together with the option being added to the command.
 
-* Constraint: one of three options can be informed @link(ocNoValue) - does not allow receiving values for the option, @link(ocRequiresValue) - requires filling in a value for the option and @link(ocOptionalValue) - which does not validate if a value has been reported or not. Check the @link(TCommand.AddOption AddOption) command for more information. The options must be informed by the user, as in the following example: -a="value" -b="my value with spaces".
+* Constraint: one of three options can be informed @link(ocNoValue) - does not allow receiving values for the option, @link(ocRequiresValue) - requires filling in a value for the option and @link(ocOptionalValue) - which does not validate if a value has been reported or not. Check the @link(TCommand.AddOption AddOption) command for more information.
+
+The user gives the value after an equal sign, in the long or the short form: @html(<code>--name=value</code>), @html(<code>-n=value</code>) or @html(<code>-n="my value with spaces"</code>). Short flags can be grouped, and the last one of the group takes the value: @html(<code>-vn=value</code>) is @html(<code>-v -n=value</code>). A value separated by a space, as in @html(<code>--name value</code>), is read as an argument, not as the value of the option. In the command callback, @link(TCommandBuilder.CheckOption CheckOption) with the AValue parameter returns the value, whatever the order of the options.
+
+The not allowed flags are validated for the options with a value as well: with @html(<code>-t</code>) not allowed with @html(<code>-w</code>), both @html(<code>--template=cli -w</code>) and @html(<code>-w -t=cli</code>) are rejected.
+
+When the validation fails, the errors are shown, the command does not run and the exit code is 1, so a script calling the tool notices it.
 
 @section(2 SecFourth Command usage out of the box, outputs command information for a given command or general usage of the tool.)
 
@@ -44,7 +50,7 @@ All samples are using this built-in feature. You can get a better explanation of
 
 One of the most exciting features of the library is providing functionality to display text on the console with colors allowing the developer to provide the proper highlighting of important information.
 
-To see how to implement a command line tool with highlighted text you can check out sample @html(<a href="https://github.com/leandro-lprsoft/pascli/blob/main/samples/colors/colors.lpr">Colors</a>). We can see that the implemented commands use the @link(TCommandBuilder.OutputColor OutputColor) callback function, that actually is calling @link(ColorConsoleOutput) to display the text in the selected color.
+To see how to implement a command line tool with highlighted text you can check out sample @html(<a href="https://github.com/laprado/pascli/blob/main/samples/colors/colors.lpr">Colors</a>). We can see that the implemented commands use the @link(TCommandBuilder.OutputColor OutputColor) callback function, that actually is calling @link(ColorConsoleOutput) to display the text in the selected color.
 It is worth noting that a @link(TColorTheme color theme) is defined during the creation of the @link(TCommandBuilder), but it can be customized by the developer changing the property @link(TCommandBuilder.ColorTheme ColorTheme) of CommandBuilder.
 
 @section(2 SecSeventh Full unit tested.)

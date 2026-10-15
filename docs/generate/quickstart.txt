@@ -8,7 +8,7 @@ Create a project named helloWorld using Lazarus or an editor of your preference.
 @section(1 SecSecond Manual install)
 
 @unorderedList(
-  @item(Download the zip file from @html(<a href="https://github.com/leandro-lprsoft/pascli/releases">releases</a>) page. Or you can just clone the repository.)
+  @item(Download the zip file from @html(<a href="https://github.com/laprado/pascli/releases">releases</a>) page. Or you can just clone the repository.)
   @item(Unzip it to a folder of your preference.)
   @item(Create a new project using Lazarus, open the project options, access the "compiler options / paths" section , and add the pascli "src" folder to the field "Other unit files", use the search button "..." to locate this folder.)
 )
@@ -19,7 +19,7 @@ Another option to install pascli is using the @html(<a href="https://github.com/
 
 @longCode(
   boss init --quiet
-  boss install github.com/leandro-lprsoft/pascli
+  boss install github.com/laprado/pascli
 )
 
 This commands will download the library inside a subfolder "modules/pascli/src" and add this new path to the search path of the project. 

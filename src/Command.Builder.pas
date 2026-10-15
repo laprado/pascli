@@ -316,7 +316,7 @@ type
 
     /// <summary> Using a callback to add a command to the CommandBuilder. The main purpose of this
     /// method is to allow the use of the fluent interface.
-    /// Ex: CommandBuilder.AddCommand(@Command.Usage.Registry);
+    /// Ex: CommandBuilder.AddCommand(@@Command.Usage.Registry);
     /// </summary>
     /// <param name="ACommand">Command callback that will be invoked by CommandBuilder to add the
     /// command. </param>
@@ -384,7 +384,7 @@ type
     /// through the Arguments[n].Value property. </summary>
     procedure Execute;
 
-    /// <summary> Executes the @link(TCommandBuilder.Parse), @link(TCommandBuilder.Validade) and
+    /// <summary> Executes the @link(TCommandBuilder.Parse), @link(TCommandBuilder.Validate) and
     /// @link(TCommandBuilder.Execute) methods to process all parameters provided by the user
     /// and call the correct callback command or to print validation messages. </summary>
     function Run: ICommandBuilder;
