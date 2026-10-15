@@ -25,3 +25,10 @@ tests/TestPascli
 # workflow
 /docs/*
 !/docs/generate/
+
+# sample executables
+/samples/basic/basic
+/samples/colors/colors
+/samples/fluent/fluent
+/samples/input/input
+/samples/options/options

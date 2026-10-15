@@ -1,0 +1,29 @@
+name: toolchain cache
+
+# Keeps the FPC and Lazarus cache in the scope of main, the only one that pull requests and
+# tags can restore besides their own: caches created by a pull request are not shared with
+# other pull requests. It runs when the setup changes, and twice a week so the cache is never
+# unused for the 7 days after which GitHub evicts it.
+on:
+  push:
+    branches:
+    - "main"
+    paths:
+    - ".github/actions/setup-toolchain/**"
+    - ".github/workflows/toolchain-cache.yml"
+  schedule:
+  - cron: "0 6 * * 1,4"
+  workflow_dispatch:
+
+jobs:
+  cache:
+    runs-on: ${{ matrix.operating-system }}
+    strategy:
+      fail-fast: false
+      matrix:
+        operating-system: [ubuntu-latest, windows-latest]
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup FPC and Lazarus
+      uses: ./.github/actions/setup-toolchain

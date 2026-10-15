@@ -1,0 +1,145 @@
+name: Setup FPC and Lazarus
+description: >
+  Installs FPC from the official downloads.freepascal.org packages and builds lazbuild from
+  the Lazarus sources on the freepascal.org GitLab, both kept in a single cache, as in pasc.
+  Sets LAZARUS_DIR, adds fpc and lazbuild to the path. On Windows FPC is i386 with the
+  x86_64-win64 cross compiler, so builds for win64 pass --os=win64 --cpu=x86_64.
+
+inputs:
+  fpc-version:
+    description: FPC release
+    default: "3.2.2"
+  lazarus-tag:
+    description: Lazarus release tag on the freepascal.org GitLab
+    default: "lazarus_4_8"
+  lazarus-commit:
+    description: Commit of the Lazarus tag, checked after the clone
+    default: "62c14a4d18c81f222127d42ce9b89b922c63fcbf"
+
+outputs:
+  cache-hit:
+    description: Whether FPC and Lazarus came from the cache
+    value: ${{ steps.cache.outputs.cache-hit }}
+
+runs:
+  using: composite
+  steps:
+  - name: Toolchain folders
+    shell: bash
+    run: |
+      if [ "$RUNNER_OS" = "Windows" ]; then
+        # the installer /DIR replaces its default C:\FPC\<version>, so the version is part of it
+        echo "FPC_DIR=C:/fpc/${{ inputs.fpc-version }}" >> "$GITHUB_ENV"
+        echo "LAZARUS_DIR=C:/lazarus" >> "$GITHUB_ENV"
+      else
+        echo "FPC_DIR=$HOME/fpc" >> "$GITHUB_ENV"
+        echo "LAZARUS_DIR=$HOME/lazarus" >> "$GITHUB_ENV"
+      fi
+
+  - name: Cache FPC and Lazarus
+    id: cache
+    uses: actions/cache@v4
+    with:
+      path: |
+        ${{ env.FPC_DIR }}
+        ${{ env.LAZARUS_DIR }}
+      # the action itself is part of the key, so a change to the install or the pruning
+      # does not reuse an old cache
+      key: toolchain-${{ runner.os }}-fpc-${{ inputs.fpc-version }}-${{ inputs.lazarus-tag }}-${{ hashFiles('.github/actions/setup-toolchain/action.yml') }}
+
+  - name: Install FPC (Linux)
+    if: ${{ runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true' }}
+    shell: bash
+    env:
+      FPC_VERSION: ${{ inputs.fpc-version }}
+    run: |
+      # what install.sh does, without its prompts: the base, units and utils packages,
+      # the compiler link and the fpc.cfg written by samplecfg
+      package="fpc-$FPC_VERSION.x86_64-linux"
+      curl -fsSLO "https://downloads.freepascal.org/fpc/dist/$FPC_VERSION/x86_64-linux/$package.tar"
+      echo "5adac308a5534b6a76446d8311fc340747cbb7edeaacfe6b651493ff3fe31e83  $package.tar" | sha256sum -c -
+      tar xf "$package.tar"
+      mkdir -p binary "$FPC_DIR/etc"
+      tar xf "$package/binary.x86_64-linux.tar" -C binary
+      for f in binary/base.*.tar.gz binary/units-*.tar.gz binary/utils-*.tar.gz; do
+        tar xzf "$f" -C "$FPC_DIR"
+      done
+      ln -sf "$FPC_DIR/lib/fpc/$FPC_VERSION/ppcx64" "$FPC_DIR/bin/ppcx64"
+      "$FPC_DIR/lib/fpc/$FPC_VERSION/samplecfg" "$FPC_DIR/lib/fpc/$FPC_VERSION" "$FPC_DIR/etc" > /dev/null
+      rm -rf "$package" "$package.tar" binary
+
+  - name: Install FPC (Windows)
+    if: ${{ runner.os == 'Windows' && steps.cache.outputs.cache-hit != 'true' }}
+    shell: pwsh
+    env:
+      FPC_VERSION: ${{ inputs.fpc-version }}
+    run: |
+      $base = "https://downloads.freepascal.org/fpc/dist/$env:FPC_VERSION/i386-win32"
+      $files = [ordered]@{
+        "fpc-$env:FPC_VERSION.i386-win32.exe" = "7ec78b1790ecac7685f440b17f9e03865bc09846b7c068a9270c4d37704b5ac8"
+        "fpc-$env:FPC_VERSION.i386-win32.cross.x86_64-win64.exe" = "9b4ea18d9c0a613fcc815b78612967a62d539e8c42070299c5c3c2ce8f712768"
+      }
+      foreach ($file in $files.Keys) {
+        curl.exe -fsSLO "$base/$file"
+        if ((Get-FileHash $file -Algorithm SHA256).Hash -ne $files[$file]) { throw "$file checksum mismatch" }
+        # Inno Setup installers
+        Start-Process -FilePath ".\$file" -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-", "/DIR=$env:FPC_DIR" -Wait
+        Remove-Item $file
+      }
+      # compiling does not need the docs and demos; the i386 units stay, because lazbuild
+      # checks the compiler against its default target even when building for win64
+      foreach ($dir in @("doc", "demo", "examples")) {
+        $path = Join-Path $env:FPC_DIR $dir
+        if (Test-Path $path) { Remove-Item $path -Recurse -Force }
+      }
+
+  - name: Add FPC to the path (Linux)
+    if: ${{ runner.os == 'Linux' }}
+    shell: bash
+    run: |
+      echo "$FPC_DIR/bin" >> "$GITHUB_PATH"
+      # fpc.cfg is in the install folder, not in ~/.fpc.cfg or /etc
+      echo "PPC_CONFIG_PATH=$FPC_DIR/etc" >> "$GITHUB_ENV"
+
+  - name: Add FPC to the path (Windows)
+    if: ${{ runner.os == 'Windows' }}
+    shell: pwsh
+    run: |
+      $fpc = Get-ChildItem -Path $env:FPC_DIR -Recurse -Filter fpc.exe | Select-Object -First 1
+      if (-not $fpc) { throw "fpc.exe not found in $env:FPC_DIR" }
+      echo $fpc.DirectoryName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+  - name: Get Lazarus sources
+    if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+    shell: bash
+    run: |
+      git clone -q --depth 1 --branch "${{ inputs.lazarus-tag }}" https://gitlab.com/freepascal.org/lazarus/lazarus.git "$LAZARUS_DIR"
+      test "$(git -C "$LAZARUS_DIR" rev-parse HEAD)" = "${{ inputs.lazarus-commit }}"
+
+  - name: Build lazbuild (Linux)
+    if: ${{ runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true' }}
+    shell: bash
+    run: make -C "$LAZARUS_DIR" lazbuild
+
+  # FPC makefiles detect the shell, so make runs outside Git Bash, with the make.exe of FPC
+  - name: Build lazbuild (Windows)
+    if: ${{ runner.os == 'Windows' && steps.cache.outputs.cache-hit != 'true' }}
+    shell: pwsh
+    run: make -C "$env:LAZARUS_DIR" lazbuild
+
+  # only what lazbuild needs to build projects is cached: the packages in components and lcl
+  # stay, the IDE, docs, examples, translations and the units used to build lazbuild go
+  - name: Prune Lazarus
+    if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+    shell: bash
+    run: |
+      cd "$LAZARUS_DIR"
+      rm -rf .git docs examples languages images test tools doceditor units
+      strip lazbuild* || true
+
+  - name: Add lazbuild to the path
+    shell: bash
+    run: |
+      echo "$LAZARUS_DIR" >> "$GITHUB_PATH"
+      fpc -iV
+      "$LAZARUS_DIR/lazbuild" --version

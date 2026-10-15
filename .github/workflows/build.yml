@@ -1,0 +1,56 @@
+name: build
+
+# Pull requests only: the merge into main would rebuild what the pull request already
+# tested. The FPC and Lazarus cache of main, which pull requests can restore, is kept by
+# toolchain-cache.yml.
+on:
+  pull_request:
+    paths-ignore:
+    - "README.md"
+    - "LICENSE"
+    - "docs/**"
+    - ".vscode/**"
+    - ".github/workflows/docs.yml"
+    - ".github/workflows/toolchain-cache.yml"
+    branches:
+    - "main"
+  workflow_dispatch:
+
+# a new push to the pull request cancels the build of the previous one
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ${{ matrix.operating-system }}
+    strategy:
+      fail-fast: false
+      matrix:
+        operating-system: [ubuntu-latest, windows-latest]
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup FPC and Lazarus
+      uses: ./.github/actions/setup-toolchain
+
+    # FPC on Windows is i386 with a cross compiler, so the 64-bit target is explicit
+    - name: Building unit test application
+      shell: bash
+      run: |
+        target=""
+        if [ "$RUNNER_OS" = "Windows" ]; then target="--os=win64 --cpu=x86_64"; fi
+        lazbuild --lazarusdir="$LAZARUS_DIR" $target "tests/TestPascli.lpi" -B
+
+    - name: Run the unit test application
+      run: tests/TestPascli "--all" "--format=plain"
+
+    # the samples are the documented usage of the library, they must keep building
+    - name: Building the samples
+      shell: bash
+      run: |
+        target=""
+        if [ "$RUNNER_OS" = "Windows" ]; then target="--os=win64 --cpu=x86_64"; fi
+        for project in samples/*/*.lpi; do
+          lazbuild --lazarusdir="$LAZARUS_DIR" $target "$project" -B
+        done
