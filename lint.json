@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "label": "lint",
-  "message": "2 warnings, 10 notes, 6 hints",
-  "color": "red"
+  "message": "10 notes, 6 hints",
+  "color": "brightgreen"
 }
