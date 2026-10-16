@@ -70,9 +70,9 @@ jobs:
     permissions:
       contents: write
     env:
-      PASC_VERSION: "1.6.0"
+      PASC_VERSION: "1.7.0"
       # pasc_checksums.txt of the pasc release
-      PASC_SHA256: 7e76e22776b900def33e6e636cbc57bb97cd49c416879f55182b451d670f7f52
+      PASC_SHA256: 8a9e4e95273100e3fe721fea18cc6e0bab7dc53a2d7607a2fb07c724d8f2f4a9
       KCOV_VERSION: "43"
       # https://github.com/SimonKagstrom/kcov/archive/refs/tags/v43.tar.gz, the same sha256
       # as the Homebrew formula, and the same sha512 as the Arch Linux package
