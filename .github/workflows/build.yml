@@ -26,9 +26,9 @@ permissions:
 # pasc lints the library in the build job and measures the coverage and the lint in metrics.
 # The sha256 of each zip is in pasc_checksums.txt of the pasc release.
 env:
-  PASC_VERSION: "1.7.0"
-  PASC_SHA256_LINUX: 8a9e4e95273100e3fe721fea18cc6e0bab7dc53a2d7607a2fb07c724d8f2f4a9
-  PASC_SHA256_WINDOWS: f677721c69d1da347edea36b229cd14c6b61bf07af2f80a2f0d908615a2c0653
+  PASC_VERSION: "1.8.0"
+  PASC_SHA256_LINUX: 50ad12bbba03ef7a38139174441a8a1bf23d283ce692c426e9bfe2059d351819
+  PASC_SHA256_WINDOWS: 080a2e36944fb567697ee862d5dd6324aea478186dcb234a03d268601aee11a0
 
 # a new push to the pull request, or a new merge, cancels the build of the previous one
 concurrency:
