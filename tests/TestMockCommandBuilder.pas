@@ -2,6 +2,9 @@ unit TestMockCommandBuilder;
 
 {$MODE DELPHI}{$H+}
 
+// the mock is a TVirtualInterface, which needs the Rtti unit, marked as experimental by FPC
+{$WARN 5079 OFF}
+
 interface
 
 uses
@@ -45,6 +48,7 @@ begin
     .AddCommand('mock')
       .Description('mock command')
       .OnExecute(MockCommand);
+  Result := True;
 end;
 
 function MockInputLn: string;
