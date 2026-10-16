@@ -101,6 +101,11 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+    # on main the job pushes to the badges branch, like badges.yml, so they run one at a time;
+    # pull requests do not push, and do not wait
+    concurrency:
+      group: ${{ github.event_name == 'push' && 'badges' || format('metrics-{0}', github.run_id) }}
+      cancel-in-progress: false
     env:
       KCOV_VERSION: "43"
       # https://github.com/SimonKagstrom/kcov/archive/refs/tags/v43.tar.gz, the same sha256
