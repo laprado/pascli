@@ -23,6 +23,13 @@ on:
 permissions:
   contents: read
 
+# pasc lints the library in the build job and measures the coverage and the lint in metrics.
+# The sha256 of each zip is in pasc_checksums.txt of the pasc release.
+env:
+  PASC_VERSION: "1.7.0"
+  PASC_SHA256_LINUX: 8a9e4e95273100e3fe721fea18cc6e0bab7dc53a2d7607a2fb07c724d8f2f4a9
+  PASC_SHA256_WINDOWS: f677721c69d1da347edea36b229cd14c6b61bf07af2f80a2f0d908615a2c0653
+
 # a new push to the pull request, or a new merge, cancels the build of the previous one
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -40,6 +47,26 @@ jobs:
 
     - name: Setup FPC and Lazarus
       uses: ./.github/actions/setup-toolchain
+
+    - name: Install pasc
+      shell: bash
+      run: |
+        asset=pasc-linux-amd64.zip
+        sha="$PASC_SHA256_LINUX"
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          asset=pasc-windows-amd64.zip
+          sha="$PASC_SHA256_WINDOWS"
+        fi
+        cd "$RUNNER_TEMP"
+        curl -fsSL -o pasc.zip "https://github.com/laprado/pasc/releases/download/v$PASC_VERSION/$asset"
+        echo "$sha  pasc.zip" | sha256sum -c -
+        unzip -q -o pasc.zip -d "$HOME/pasc"
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          cygpath -w "$HOME/pasc" >> "$GITHUB_PATH"
+        else
+          echo "$HOME/pasc" >> "$GITHUB_PATH"
+        fi
+        "$HOME/pasc/pasc" version
 
     # FPC on Windows is i386 with a cross compiler, so the 64-bit target is explicit
     - name: Building unit test application
@@ -62,17 +89,19 @@ jobs:
           lazbuild $target "$project" -B
         done
 
-  # pasc coverage on Ubuntu only: kcov does not run on Windows. On main the total goes to
-  # coverage.json in the badges branch, read by the coverage badge of the README through the
-  # shields.io endpoint, so the README never changes to update it.
-  coverage:
+    # the warnings of the compiler in the sources and the tests, the last step, so a failing
+    # message does not hide the result of the others
+    - name: Lint
+      run: pasc lint
+
+  # pasc coverage and pasc lint on Ubuntu only: kcov does not run on Windows. On main the
+  # totals go to coverage.json and lint.json in the badges branch, read by the badges of the
+  # README through the shields.io endpoint, so the README never changes to update them.
+  metrics:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     env:
-      PASC_VERSION: "1.7.0"
-      # pasc_checksums.txt of the pasc release
-      PASC_SHA256: 8a9e4e95273100e3fe721fea18cc6e0bab7dc53a2d7607a2fb07c724d8f2f4a9
       KCOV_VERSION: "43"
       # https://github.com/SimonKagstrom/kcov/archive/refs/tags/v43.tar.gz, the same sha256
       # as the Homebrew formula, and the same sha512 as the Arch Linux package
@@ -84,12 +113,23 @@ jobs:
       uses: ./.github/actions/setup-toolchain
 
     - name: Install pasc
+      shell: bash
       run: |
+        asset=pasc-linux-amd64.zip
+        sha="$PASC_SHA256_LINUX"
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          asset=pasc-windows-amd64.zip
+          sha="$PASC_SHA256_WINDOWS"
+        fi
         cd "$RUNNER_TEMP"
-        curl -fsSL -o pasc.zip "https://github.com/laprado/pasc/releases/download/v$PASC_VERSION/pasc-linux-amd64.zip"
-        echo "$PASC_SHA256  pasc.zip" | sha256sum -c -
-        unzip -q pasc.zip -d "$HOME/pasc"
-        echo "$HOME/pasc" >> "$GITHUB_PATH"
+        curl -fsSL -o pasc.zip "https://github.com/laprado/pasc/releases/download/v$PASC_VERSION/$asset"
+        echo "$sha  pasc.zip" | sha256sum -c -
+        unzip -q -o pasc.zip -d "$HOME/pasc"
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          cygpath -w "$HOME/pasc" >> "$GITHUB_PATH"
+        else
+          echo "$HOME/pasc" >> "$GITHUB_PATH"
+        fi
         "$HOME/pasc/pasc" version
 
     # Ubuntu 24.04 has no kcov package, so it is built from the sources of the release tag
@@ -129,6 +169,22 @@ jobs:
         echo "percent=$percent" >> "$GITHUB_OUTPUT"
         echo "coverage: $percent%"
 
+    # the build job is the gate of the lint; here a failing message goes to the badge, in red,
+    # instead of stopping the job. Kinds with no message are left out, like in the summary.
+    - name: Measuring the lint
+      id: lint
+      run: |
+        pasc lint --report=lint-report.json || true
+        message=$(jq -r '[("error","warning","note","hint") as $kind
+          | .[$kind + "s"] as $count | select($count > 0)
+          | "\($count) \($kind)" + (if $count > 1 then "s" else "" end)] | join(", ")
+          | if . == "" then "clean" else . end' lint-report.json)
+        color=$(jq -r 'if .failing > 0 or .notLinted > 0 then "red" elif .warnings > 0 then "yellow"
+          else "brightgreen" end' lint-report.json)
+        echo "message=$message" >> "$GITHUB_OUTPUT"
+        echo "color=$color" >> "$GITHUB_OUTPUT"
+        echo "lint: $message ($color)"
+
     - name: Upload the coverage report
       if: always()
       uses: actions/upload-artifact@v4
@@ -137,9 +193,9 @@ jobs:
         path: coverage/
         retention-days: 14
 
-    # the same color bands as pasc: red below 60%, yellow below 80%, green below 90%, then
-    # brightgreen. A push with GITHUB_TOKEN starts no workflow, so no loop.
-    - name: Publish the coverage badge
+    # coverage: the same color bands as pasc, red below 60%, yellow below 80%, green below 90%,
+    # then brightgreen. A push with GITHUB_TOKEN starts no workflow, so no loop.
+    - name: Publish the badges
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
         percent="${{ steps.coverage.outputs.percent }}"
@@ -154,14 +210,16 @@ jobs:
         fi
         jq -n --arg message "$message" --arg color "$color" \
           '{schemaVersion: 1, label: "coverage", message: $message, color: $color}' > "$badges/coverage.json"
+        jq -n --arg message "${{ steps.lint.outputs.message }}" --arg color "${{ steps.lint.outputs.color }}" \
+          '{schemaVersion: 1, label: "lint", message: $message, color: $color}' > "$badges/lint.json"
 
         cd "$badges"
-        git add coverage.json
+        git add coverage.json lint.json
         if git diff --cached --quiet; then
-          echo "coverage unchanged: $message"
+          echo "badges unchanged: coverage $message, lint ${{ steps.lint.outputs.message }}"
           exit 0
         fi
         git -c user.name="github-actions[bot]" \
           -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-          commit -q -m "coverage $message ($GITHUB_SHA)"
+          commit -q -m "coverage $message, lint ${{ steps.lint.outputs.message }} ($GITHUB_SHA)"
         git push origin badges
