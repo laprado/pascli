@@ -1,0 +1,60 @@
+name: badges
+
+# Writes release.json to the badges branch, read by the release badge of the README through
+# the shields.io endpoint. The github/v/release badge of shields.io queries the GitHub API
+# with a pool of tokens shared by everyone, and shows "Unable to select next GitHub token
+# from pool" when it runs out; this one reads a file. It runs when a release is published,
+# by hand, and when this workflow changes on main, which writes the first one.
+on:
+  release:
+    types: [published]
+  push:
+    branches:
+    - "main"
+    paths:
+    - ".github/workflows/badges.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    # the metrics job of build.yml also pushes to the badges branch, one at a time
+    concurrency:
+      group: badges
+      cancel-in-progress: false
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Publish the release badge
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        # the latest release, not a draft or a prerelease; the tags of pascli have no v, the
+        # badge shows one, like the one of shields.io
+        tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
+        message="v${tag#v}"
+
+        badges="$RUNNER_TEMP/badges"
+        if git fetch --depth=1 origin badges:refs/remotes/origin/badges; then
+          git worktree add -B badges "$badges" origin/badges
+        else
+          git worktree add --orphan -b badges "$badges"
+        fi
+        jq -n --arg message "$message" \
+          '{schemaVersion: 1, label: "release", message: $message, color: "blue"}' > "$badges/release.json"
+
+        cd "$badges"
+        git add release.json
+        if git diff --cached --quiet; then
+          echo "release unchanged: $message"
+          exit 0
+        fi
+        git -c user.name="github-actions[bot]" \
+          -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+          commit -q -m "release $message"
+        git push origin badges
